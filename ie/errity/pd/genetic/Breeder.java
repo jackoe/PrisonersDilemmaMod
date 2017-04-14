@@ -75,7 +75,7 @@ public class Breeder extends JPanel
         }
 
         double stDev = Math.sqrt(sumSquaredErr / popSize);
-        if (stDev == 0) {
+        if (stDev > 0) {
             for (int i = 0; i < popSize; i++) {
                 double scaledFitness = 1 + (prisoners[i].getScore() - mean) / (2 * stDev);
                 scaledFitnesses[i] = scaledFitness < .1 ? .1 : scaledFitness;
@@ -100,12 +100,9 @@ public class Breeder extends JPanel
         int scoreSum = getScoreSum(sampleFrom);
 
         double scaledFitnesses[] = getScaledFitness(sampleFrom, scoreSum);
-        System.out.println("popSize = " + popSize);
-        System.out.println("selParam = " + selParam);
-        System.err.println("scaledFitnesses =" + Arrays.toString(scaledFitnesses));
+
 
         double intervalSize = sum(scaledFitnesses) / (popSize - selParam);
-
         double distToNextTick = rand.nextDouble() * intervalSize;
         //TEMP
 
@@ -113,20 +110,11 @@ public class Breeder extends JPanel
         int ticksLeftToPlace = popSize - selParam;
         int i = 0;
 
-//        System.err.println(Arrays.toString(scaledFitnesses));
-        System.err.println("intervalSize: " + intervalSize);
-//        System.err.println("starting sampling: " + (popSize - numElite));
         while (ticksLeftToPlace > 0) {
             if (distToNextTick < scaledFitnesses[curIndex]) {
                 Prisoner sampledPrisoner = (Prisoner) sampleFrom[curIndex].clone();
                 sampleTo[ticksLeftToPlace + selParam - 1] = sampledPrisoner;
-                System.err.println("curIndex =" + curIndex);
-                System.err.println("counter =" + ticksLeftToPlace);
-                System.err.println("scaledFitnesses =" + Arrays.toString(scaledFitnesses));
-                System.err.println("sum = " + sum(scaledFitnesses));
-                System.err.println("distToNextTick = " + distToNextTick);
                 ticksLeftToPlace--;
-
                 scaledFitnesses[curIndex] -= distToNextTick;
                 distToNextTick = intervalSize;
             } else {
@@ -138,7 +126,29 @@ public class Breeder extends JPanel
     }
 
 
+    private void shuffleArray(Prisoner[] sampleFrom) {
+        for (int i = 0; i < popSize; i++) {
+            Prisoner temp = sampleFrom[i];
+            int shuffleIndex = rand.nextInt(popSize);
+            sampleFrom[i] = sampleFrom[shuffleIndex];
+            sampleFrom[shuffleIndex] = temp;
+        }
+    }
 
+    private void tournamentSelection(Prisoner[] sampleFrom, Prisoner[] sampleTo) {
+        int tSize = selParam;
+
+        for (int i = 0; i < popSize; i++) {
+            shuffleArray(sampleFrom);
+            Prisoner best = sampleFrom[0];
+            for (int j = 1; j < tSize; j++) {
+                if (sampleFrom[j].getScore() > best.getScore()) {
+                    best = sampleFrom[j];
+                }
+            }
+            sampleTo[i] = best;
+        }
+    }
 
     /**
      *Breeds the next generation (panmictic mating) of an array of 
@@ -195,8 +205,8 @@ public class Breeder extends JPanel
         // Fitness Proportional Selection with sigma scaling and stochastic universal sampling, plus optional elitism
         case 1:
             if (selParam > 0) {
-                Prisoner best = c[0];
-                for (Prisoner p: c) {
+                Prisoner best = curPopulation[0];
+                for (Prisoner p: curPopulation) {
                     if (p.getScore() > best.getScore()) {
                         best = p;
                     }
@@ -205,17 +215,12 @@ public class Breeder extends JPanel
                     Selected[i] = (Prisoner) best.clone();
                 }
             }
-            fitnessProportionalSelection(c, Selected);
-
-
-
+            fitnessProportionalSelection(curPopulation, Selected);
             break;
+
         // tournament selection
         case 2:
-
-
-
-
+            tournamentSelection(curPopulation, Selected);
             break;
 
         // otherwise...
